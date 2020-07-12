@@ -18,6 +18,11 @@ Resources:
     Properties:
       UserName: ely
 
+  TestUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: test
+
   AdminGroup:
     Type: AWS::IAM::Group
     Properties:
@@ -49,6 +54,7 @@ Resources:
         - !Ref BrandonUser
         - !Ref CarlosUser
         - !Ref ElyUser
+        - !Ref TestUser
 
   AdminPolicy:
     Type: AWS::IAM::ManagedPolicy

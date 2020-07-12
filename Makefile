@@ -4,13 +4,17 @@
 help:  ## List available commands
 	  @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-env:  # Check and set up environment
+.env: ./scripts/check_system.sh
 	  ./scripts/check_system.sh
+		touch .env
+
+env: .env  # Check and set up environment
 
 clean:  ## Clean build
 	  rm -f .test
+		rm -f .env
 
-.test: env
+.test: .env ./cloudformation/users.yml
 	  $(MAKE) validate-cloudformation cf-file=cloudformation/users.yml
 	  touch .test
 
