@@ -1,0 +1,193 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+
+Description: >
+  Create users.  Not regionalized since IAM is global.
+
+Resources:
+  BrandonUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: brandon
+  CarlosUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: carlos
+  ElyUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: ely
+
+  TestUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: test
+
+  AdminGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: AdminUsers
+      ManagedPolicyArns:
+        - !Ref AdminPolicy
+
+  PopulateAdminsGroup:
+    Type: AWS::IAM::UserToGroupAddition
+    Properties:
+      GroupName: !Ref AdminGroup
+      Users:
+        - !Ref BrandonUser
+        - !Ref CarlosUser
+        - !Ref ElyUser
+
+  AllUsersGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: AllUsers
+      ManagedPolicyArns:
+        - !Ref SelfAdminPolicy
+
+  PopulateAllUsersGroup:
+    Type: AWS::IAM::UserToGroupAddition
+    Properties:
+      GroupName: !Ref AllUsersGroup
+      Users:
+        - !Ref BrandonUser
+        - !Ref CarlosUser
+        - !Ref ElyUser
+        - !Ref TestUser
+
+  AdminPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    DependsOn: AdminRole
+    Properties:
+      Description: Allow assuming the admin role
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Resource:
+              - Fn::GetAtt: AdminRole.Arn
+
+  AdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: admin
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess  # built-in
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - "sts:AssumeRole"
+            Condition:
+              Bool:
+                "aws:MultiFactorAuthPresent": "true"
+
+  UserRunnerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Allow running this CloudFormation template
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudformation:CancelUpdateStack
+              - cloudformation:ContinueUpdateRollback
+              - cloudformation:CreateChangeStack
+              - cloudformation:CreateStack
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DescribeStackResource
+              - cloudformation:DescribeStackResources
+              - cloudformation:DescribeStacks
+              - cloudformation:EstimateTemplateCost
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:GetStackPolicy
+              - cloudformation:GetTemplate
+              - cloudformation:GetTemplateSummary
+              - cloudformation:ListChangeSets
+              - cloudformation:ListStackResources
+              - cloudformation:PreviewStackUpdate
+              - cloudformation:UpdateStack
+              - cloudformation:ValidateTemplate
+            Resource:
+              - !Sub "arn:aws:cloudformation::${AWS::AccountId}:stack/${AWS::StackName}/*"
+
+  SelfAdminPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Modify your own user information and list IAM info in console
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: ManageOwnAccount
+            Effect: Allow
+            Action:
+              # Change passwordn
+              - iam:ChangePassword
+              - iam:CreateLoginProfile
+              - iam:DeleteLoginProfile
+              - iam:GetLoginProfile
+              - iam:UpdateLoginProfile
+              # AccessKey
+              - iam:CreateAccessKey
+              - iam:DeleteAccessKey
+              - iam:GetAccessKeyLastUsed
+              - iam:ListAccessKeys
+              - iam:UpdateAccessKey
+              # SSH Key
+              - iam:DeleteSSHPublicKey
+              - iam:GetSSHPublicKey
+              - iam:ListSSHPublicKeys
+              - iam:UpdateSSHPublicKey
+              - iam:UploadSSHPublicKey
+              # Signing certificate
+              - iam:DeleteSigningCertificate
+              - iam:ListSigningCertificates
+              - iam:UpdateSigningCertificate
+              - iam:UploadSigningCertificate
+            Resource:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:user/${!aws:username}"
+          - Sid: ListOwnMFA
+            Effect: Allow
+            Action:
+              - iam:ListMFADevices
+            Resource:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:mfa/*"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:user/${!aws:username}"
+          - Sid: ManageOwnMFA
+            Effect: Allow
+            Action:
+              - iam:CreateVirtualMFADevice
+              # - "iam:DeleteVirtualMFADevice"  # Only an admin can disable MFA
+              - iam:EnableMFADevice
+              - iam:ResyncMFADevice
+            Resource:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:mfa/${!aws:username}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:user/${!aws:username}"
+          # Only an admin can deactivate MFA
+          # - Sid: "DeactivateOwnMFA"
+          #   Effect: Allow
+          #   Action:
+          #     - "iam:DeactivateMFADevice"
+          #   Resource:
+          #     - !Sub "arn:aws:iam::${AWS::AccountId}:mfa/${!aws:username}"
+          #     - !Sub "arn:aws:iam::${AWS::AccountId}:user/${!aws:username}"
+          #   Condition:
+          #     Bool:
+          #       "aws:MultiFactorAuthPresent": "true"
+          - Sid: ConsoleAccess
+            Effect: Allow
+            Action:
+                - iam:GetAccountPasswordPolicy
+                - iam:GetAccountSummary
+                - iam:ListAccountAliases
+                - iam:ListUsers
+                - iam:ListVirtualMFADevices
+            Resource: "*"
