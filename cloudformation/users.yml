@@ -21,10 +21,6 @@ Resources:
     Type: AWS::IAM::User
     Properties:
       UserName: test
-  TestUser2:
-    Type: AWS::IAM::User
-    Properties:
-      UserName: test2
 
   AdminGroup:
     Type: AWS::IAM::Group
