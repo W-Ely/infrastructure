@@ -29,7 +29,7 @@ ignore-imports = "yes"
 min-similarity-lines = 15
 
 [tool.pylint.basic]
-good-names = ["i", "j", "k", "x", "y", "z", "f", "ex", "id", "ec", "pt", "_"]
+good-names = ["i", "j", "k", "x", "y", "z", "f", "e", "ex", "id", "ec", "pt", "_"]
 
 [tool.pylint.design]
 max-args = 7        # Maximum number of arguments for function / method.

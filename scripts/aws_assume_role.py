@@ -16,16 +16,25 @@ def is_expired(payload):
     expiration = payload.get("Credentials", {}).get("Expiration")
     if not expiration:
         return True
-    expiration = datetime.strptime(expiration, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    expiration = datetime.strptime(expiration, "%Y-%m-%dT%H:%M:%SZ").replace(
+        tzinfo=timezone.utc
+    )
     now = datetime.now(timezone.utc)
     time_to_expiration = expiration - now
-    time_to_expiration_seconds = time_to_expiration.days * 24 * 60 * 60 + time_to_expiration.seconds
+    time_to_expiration_seconds = (
+        time_to_expiration.days * 24 * 60 * 60 + time_to_expiration.seconds
+    )
     extra_seconds_as_buffer = 30
     return time_to_expiration_seconds < extra_seconds_as_buffer
 
 
 def filename(kwargs):
-    return hashlib.sha1(f'{kwargs["RoleArn"]}{kwargs.get("SerialNumber")}'.encode("utf-8")).hexdigest() + ".json"
+    return (
+        hashlib.sha1(
+            f'{kwargs["RoleArn"]}{kwargs.get("SerialNumber")}'.encode("utf-8")
+        ).hexdigest()
+        + ".json"
+    )
 
 
 class Cache:
@@ -38,7 +47,7 @@ class Cache:
         path = os.path.join(self.cache_dir, filename(kwargs))
         res = None
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 res = json.load(f)
         except FileNotFoundError:
             return None
@@ -55,15 +64,16 @@ class Cache:
             os.remove(path)
         except FileNotFoundError:
             pass
-        res["Credentials"]["Expiration"] = res["Credentials"]["Expiration"].strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+        res["Credentials"]["Expiration"] = (
+            res["Credentials"]["Expiration"].strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+        )
         with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT, 0o600), "w") as f:
             f.write(json.dumps(res))
 
 
 def main(args=None):
 
-    aws_session = boto3.session.Session()
-    sts_client = aws_session.client("sts")
+    sts_client = boto3.session.Session().client("sts")
     caller_identity = sts_client.get_caller_identity()
     arn = caller_identity["Arn"]
     arn_split = arn.split(":")
@@ -98,17 +108,21 @@ def main(args=None):
     env.update(aws_env)
     if "AWS_PROFILE" in env:
         del env["AWS_PROFILE"]
-    process = subprocess.run(args.command, env=env)
+    process = subprocess.run(args.command, env=env, check=True)
     sys.exit(process.returncode)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--role", required=True, help="Role to assume.")
     parser.add_argument(
-        "--role", required=True, help="Role to assume.",
+        "--mfa", default=False, action="store_true", help="Is MFA required"
     )
-    parser.add_argument("--mfa", default=False, action="store_true", help="Is MFA required")
-    parser.add_argument("--duration", type=int, help="Duration of credentials in seconds")
-    parser.add_argument("command", nargs=argparse.REMAINDER, help="The command to execute.")
-    args = parser.parse_args()
-    main(args)
+    parser.add_argument(
+        "--duration", type=int, help="Duration of credentials in seconds"
+    )
+    parser.add_argument(
+        "command", nargs=argparse.REMAINDER, help="The command to execute."
+    )
+    parsed_args = parser.parse_args()
+    main(parsed_args)

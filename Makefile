@@ -1,5 +1,7 @@
 .PHONY: clean dev env help lock test deploy-users validate-cloudformation
 
+script-directory := scripts
+script-files := $(shell find $(script-directory) -name '*.py' -not \( -path '*__pycache__*' \))
 deploy-role ?= admin
 
 # This is a self documenting make file.  ## Comments after the command are the help
@@ -32,7 +34,14 @@ clean:  ## Clean build
 	touch .test
 
 .lint: .dev
-	./scripts/lint.sh
+	echo "black:"
+	pipenv run black --safe -v $(script-files)
+	echo "pylint:"
+	pipenv run pylint $(script-files)
+	echo "pycodestyle:"
+	pipenv run pycodestyle $(script-files) \
+	    --ignore=E203,E402,E711,E712,W503,W405,E231,E501 \
+	    --max-line-length=88
 	@touch .lint
 
 env: .env ## Check and set up environment
