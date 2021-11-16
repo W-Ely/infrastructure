@@ -1,0 +1,43 @@
+[tool.black]
+line-length = 88
+
+[tool.pylint.messages_control]
+disable = [
+    "unnecessary-pass",         # Allow empty class definitions to contain a pass statement
+    "len-as-condition",         # Allow code that checks if len(list) == 0
+    "fixme",                    # Allow TODOs and FIXMEs
+    "too-few-public-methods",   # Allow classes with predominantly-private methods
+    "no-else-return",           # Allow code such as `if X: return A, else: return B`
+    "bad-continuation",         # Disable Wrong hanging indentation before block for Black
+    "logging-fstring-interpolation", # Allow f-strings in calls to logging module
+    "logging-format-interpolation",  # Allow f-strings in calls to logging module
+    "missing-docstring",        # Allow methods and modules without docstrings
+    "import-error",             # Constantly getting wrong imports due to sys path updates
+    "no-name-in-module",        # Lambda path modification/alembic path modification.
+    "duplicate-code"            # Endpoints have similar  code but should not share it.
+]
+ignored-classes = ["scoped_session", "Session"] # sqlalchemy members not visible to pylint
+
+[tool.pylint.format]
+max-line-length = 88
+max-module-lines = 1000
+
+[tool.pylint.similarities]
+ignore-comments = "yes"
+ignore-docstrings = "yes"
+ignore-imports = "yes"
+min-similarity-lines = 15
+
+[tool.pylint.basic]
+good-names = ["i", "j", "k", "x", "y", "z", "f", "ex", "id", "ec", "pt", "_"]
+
+[tool.pylint.design]
+max-args = 7        # Maximum number of arguments for function / method.
+max-attributes = 7  # Maximum number of attributes for a class (see R0902).
+max-bool-expr = 5   # Maximum number of boolean expressions in an if statement (see R0916).
+max-branches = 12   # Maximum number of branch for function / method body.
+max-locals = 15     # Maximum number of locals for function / method body.
+max-parents = 7     # Maximum number of parents for a class (see R0901).
+max-public-methods = 20 # Maximum number of public methods for a class (see R0904).
+max-returns = 6     # Maximum number of return / yield for function / method body.
+max-statements = 50 # Maximum number of statements in function / method body.
