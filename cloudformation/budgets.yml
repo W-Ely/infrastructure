@@ -1,0 +1,35 @@
+Description: "Basic Budget"
+
+Parameters:
+  NotificationEmailAddress:
+    Type: String
+    Description: Email address notifications will go to
+
+Resources:
+  Budget:
+    Type: "AWS::Budgets::Budget"
+    Properties:
+      Budget:
+        BudgetLimit:
+          Amount: 10
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 99
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref NotificationEmailAddress
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+          Subscribers:
+          - SubscriptionType: EMAIL
+            Address: !Ref NotificationEmailAddress
+Outputs:
+  BudgetId:
+    Value: !Ref Budget

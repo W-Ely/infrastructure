@@ -90,7 +90,7 @@ Resources:
   SelfAdminPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      Description: Modify your own user information and list IAM info in console
+      Description: Modify and view your own user information and list IAM info in console
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -156,6 +156,21 @@ Resources:
                 - iam:GetAccountPasswordPolicy
                 - iam:GetAccountSummary
                 - iam:ListAccountAliases
+                - iam:ListPolicies
                 - iam:ListUsers
                 - iam:ListVirtualMFADevices
+                # Users - own iam user
+                - access-analyzer:ListPolicyGenerations
+                - iam:GenerateServiceLastAccessedDetails
+                - iam:GetUser
+                - iam:ListGroupsForUser
+                - iam:ListServiceSpecificCredentials
+                - iam:ListUserTags
+                - iam:ListUserPolicies
+                # User Groups
+                - iam:ListGroups
+                # Roles
+                - iam:ListRoles
+                # Policies
+                - iam:ListPolicies
             Resource: "*"
