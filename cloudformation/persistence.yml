@@ -1,0 +1,12 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "Central Persistence"
+
+Resources:
+  ECR:
+    Type: AWS::ECR::Repository
+Outputs:
+  ECRArn:
+    Value: !GetAtt ECR.Arn
+  ECRUri:
+    Value: !GetAtt ECR.RepositoryUri

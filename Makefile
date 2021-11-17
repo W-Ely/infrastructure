@@ -1,7 +1,9 @@
 .PHONY: clean dev env help lock test deploy-users validate-cloudformation
 
 script-directory := scripts
+cloudformation-directory := cloudformation
 script-files := $(shell find $(script-directory) -name '*.py' -not \( -path '*__pycache__*' \))
+cloudformation-files := $(shell find $(cloudformation-directory) -name '*.yml')
 deploy-role ?= admin
 
 # This is a self documenting make file.  ## Comments after the command are the help
@@ -28,9 +30,10 @@ clean:  ## Clean build
 	pipenv sync --dev
 	@touch .dev
 
-.test: .env ./cloudformation/users.yml
+.test: .env $(cloudformation-files)
 	$(MAKE) validate-cloudformation cf-file=users.yml
 	$(MAKE) validate-cloudformation cf-file=budgets.yml
+	$(MAKE) validate-cloudformation cf-file=persistence.yml
 	touch .test
 
 .lint: .dev
@@ -58,6 +61,7 @@ cf-file ?=
 validate-cloudformation: .dev
 	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
 		aws cloudformation validate-template \
+			--no-cli-pager \
 			--template-body file://./cloudformation/${cf-file}
 
 deploy-users: .dev .test
@@ -78,3 +82,11 @@ deploy-budgets: .dev .test
 			--template-file cloudformation/budgets.yml \
 			--parameter-overrides \
 				NotificationEmailAddress=$(notification-email)
+
+deploy-persistance: .dev .test
+	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
+	 	aws cloudformation deploy \
+			--stack-name persistance \
+			--no-fail-on-empty-changeset \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--template-file cloudformation/persistence.yml
