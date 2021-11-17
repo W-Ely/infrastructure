@@ -1,6 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
-
 Description: >
   Create users.  Not regionalized since IAM is global.
 
