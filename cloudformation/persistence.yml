@@ -3,10 +3,10 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: "Central Persistence"
 
 Resources:
-  ECR:
+  ECRKolvir:
     Type: AWS::ECR::Repository
 Outputs:
   ECRArn:
-    Value: !GetAtt ECR.Arn
+    Value: !GetAtt ECRKolvir.Arn
   ECRUri:
-    Value: !GetAtt ECR.RepositoryUri
+    Value: !GetAtt ECRKolvir.RepositoryUri

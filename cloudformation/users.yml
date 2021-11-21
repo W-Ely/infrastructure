@@ -152,24 +152,24 @@ Resources:
           - Sid: ConsoleAccess
             Effect: Allow
             Action:
-                - iam:GetAccountPasswordPolicy
-                - iam:GetAccountSummary
-                - iam:ListAccountAliases
-                - iam:ListPolicies
-                - iam:ListUsers
-                - iam:ListVirtualMFADevices
-                # Users - own iam user
-                - access-analyzer:ListPolicyGenerations
-                - iam:GenerateServiceLastAccessedDetails
-                - iam:GetUser
-                - iam:ListGroupsForUser
-                - iam:ListServiceSpecificCredentials
-                - iam:ListUserTags
-                - iam:ListUserPolicies
-                # User Groups
-                - iam:ListGroups
-                # Roles
-                - iam:ListRoles
-                # Policies
-                - iam:ListPolicies
+              - iam:GetAccountPasswordPolicy
+              - iam:GetAccountSummary
+              - iam:ListAccountAliases
+              - iam:ListPolicies
+              - iam:ListUsers
+              - iam:ListVirtualMFADevices
+              # Users - own iam user
+              - access-analyzer:ListPolicyGenerations
+              - iam:GenerateServiceLastAccessedDetails
+              - iam:GetUser
+              - iam:ListGroupsForUser
+              - iam:ListServiceSpecificCredentials
+              - iam:ListUserTags
+              - iam:ListUserPolicies
+              # User Groups
+              - iam:ListGroups
+              # Roles
+              - iam:ListRoles
+              # Policies
+              - iam:ListPolicies
             Resource: "*"

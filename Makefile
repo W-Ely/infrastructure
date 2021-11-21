@@ -64,6 +64,7 @@ validate-cloudformation: .dev
 			--no-cli-pager \
 			--template-body file://./cloudformation/${cf-file}
 
+.PHONY: deploy-users
 deploy-users: .dev .test
 	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
 	 	aws cloudformation deploy \
@@ -73,6 +74,7 @@ deploy-users: .dev .test
 			--template-file cloudformation/users.yml
 
 notification-email ?=
+.PHONY: deploy-budgets
 deploy-budgets: .dev .test
 	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
 	 	aws cloudformation deploy \
@@ -83,6 +85,16 @@ deploy-budgets: .dev .test
 			--parameter-overrides \
 				NotificationEmailAddress=$(notification-email)
 
+.PHONY: deploy-network
+deploy-network: .dev .test
+	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
+	 	aws cloudformation deploy \
+			--stack-name network \
+			--no-fail-on-empty-changeset \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--template-file cloudformation/network.yml
+
+.PHONY: deploy-persistance
 deploy-persistance: .dev .test
 	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
 	 	aws cloudformation deploy \
