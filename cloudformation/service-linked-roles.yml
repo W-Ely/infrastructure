@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create Service Linked Role
+
+Resources:
+  ApiGateway:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: ops.apigateway.amazonaws.com
+      Description: The Service Linked Role is used by Amazon API Gateway.
+  ASG:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: autoscaling.amazonaws.com
+      Description: Default Service-Linked Role for Autoscaling
+  Batch:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: batch.amazonaws.com
+      Description: Default Service-Linked Role for Batch
+  Cloudfront:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: logger.cloudfront.amazonaws.com
+      Description: Role to enable Cloudfront to push log files to Cloudwatch.
+  ECS:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: ecs.amazonaws.com
+      Description: Default Service-Linked Role for ECS
+  ES:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: es.amazonaws.com
+      Description: Make ES linked role to access resources in VPC
+  ELB:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: elasticloadbalancing.amazonaws.com
+      Description: Allows ELB to call AWS services on your behalf.
+  Lambda:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: replicator.lambda.amazonaws.com
+      Description: Role to enable Lambda to replicate Lambda@Edge functions to AWS regions.
+  RDS:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: rds.amazonaws.com
+      Description: Allows Amazon RDS to manage AWS resources on your behalf

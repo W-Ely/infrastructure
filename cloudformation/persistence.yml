@@ -5,8 +5,10 @@ Description: "Central Persistence"
 Resources:
   ECRKolvir:
     Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: kolvir
 Outputs:
-  ECRArn:
+  ECRKolvirArn:
     Value: !GetAtt ECRKolvir.Arn
-  ECRUri:
+  ECRKolvirUri:
     Value: !GetAtt ECRKolvir.RepositoryUri

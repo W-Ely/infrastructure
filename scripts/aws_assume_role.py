@@ -49,9 +49,12 @@ class Cache:
         try:
             with open(path, encoding="utf-8") as f:
                 res = json.load(f)
-        except FileNotFoundError:
-            return None
-        except (PermissionError, IsADirectoryError, json.decoder.JSONDecodeError):
+        except (
+            FileNotFoundError,
+            PermissionError,
+            IsADirectoryError,
+            json.decoder.JSONDecodeError
+        ):
             return None
         if is_expired(res):
             os.remove(path)
