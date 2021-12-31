@@ -7,6 +7,38 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: kolvir
+  ServerlessDeployBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "serverless-deploy-bucket-${AWS::AccountId}-${AWS::Region}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  ServerlessDeployBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ServerlessDeployBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Deny
+            Action: s3:*
+            Resource: !Sub "${ServerlessDeployBucket.Arn}/*"
+            Principal: '*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Effect: Allow
+            Action:
+              - s3:Get*
+              - s3:List*
+              - s3:PutObject
+            Resource:
+             - !Sub "${ServerlessDeployBucket.Arn}/*"
+             - !Sub "${ServerlessDeployBucket.Arn}"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/admin"
 Outputs:
   ECRKolvirArn:
     Value: !GetAtt ECRKolvir.Arn
