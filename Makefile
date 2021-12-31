@@ -31,6 +31,8 @@ clean:  ## Clean build
 	@touch .dev
 
 .test: .env $(cloudformation-files)
+	$(MAKE) validate-cloudformation cf-file=boundaries.yml
+	$(MAKE) validate-cloudformation cf-file=service-linked-roles.yml
 	$(MAKE) validate-cloudformation cf-file=users.yml
 	$(MAKE) validate-cloudformation cf-file=budgets.yml
 	$(MAKE) validate-cloudformation cf-file=persistence.yml
@@ -63,6 +65,15 @@ validate-cloudformation: .dev
 		aws cloudformation validate-template \
 			--no-cli-pager \
 			--template-body file://./cloudformation/${cf-file}
+
+.PHONY: deploy-boundaries
+deploy-boundaries: .dev .test
+	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
+	 	aws cloudformation deploy \
+			--stack-name boundaries \
+			--no-fail-on-empty-changeset \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--template-file cloudformation/boundaries.yml
 
 .PHONY: deploy-users
 deploy-users: .dev .test
@@ -102,3 +113,12 @@ deploy-persistance: .dev .test
 			--no-fail-on-empty-changeset \
 			--capabilities CAPABILITY_NAMED_IAM \
 			--template-file cloudformation/persistence.yml
+
+.PHONY: deploy-service-linked-roles
+deploy-service-linked-roles: .dev .test
+	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
+	 	aws cloudformation deploy \
+			--stack-name service-linked-roles \
+			--no-fail-on-empty-changeset \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--template-file cloudformation/service-linked-roles.yml
