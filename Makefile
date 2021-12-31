@@ -36,6 +36,7 @@ clean:  ## Clean build
 	$(MAKE) validate-cloudformation cf-file=users.yml
 	$(MAKE) validate-cloudformation cf-file=budgets.yml
 	$(MAKE) validate-cloudformation cf-file=persistence.yml
+	$(MAKE) validate-cloudformation cf-file=roles.yml
 	touch .test
 
 .lint: .dev
@@ -74,6 +75,15 @@ deploy-boundaries: .dev .test
 			--no-fail-on-empty-changeset \
 			--capabilities CAPABILITY_NAMED_IAM \
 			--template-file cloudformation/boundaries.yml
+
+.PHONY: deploy-roles
+deploy-roles: .dev .test
+	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
+	 	aws cloudformation deploy \
+			--stack-name roles \
+			--no-fail-on-empty-changeset \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--template-file cloudformation/roles.yml
 
 .PHONY: deploy-users
 deploy-users: .dev .test
