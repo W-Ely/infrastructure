@@ -31,6 +31,8 @@ clean:  ## Clean build
 	@touch .dev
 
 .test: .env $(cloudformation-files)
+	$(MAKE) validate-cloudformation cf-file=templates/vpc-2azs.yaml
+	$(MAKE) validate-cloudformation cf-file=templates/vpc-endpoint-s3.yaml
 	$(MAKE) validate-cloudformation cf-file=boundaries.yml
 	$(MAKE) validate-cloudformation cf-file=service-linked-roles.yml
 	$(MAKE) validate-cloudformation cf-file=users.yml
@@ -106,14 +108,22 @@ deploy-budgets: .dev .test
 			--parameter-overrides \
 				NotificationEmailAddress=$(notification-email)
 
-.PHONY: deploy-network
-deploy-network: .dev .test
+.PHONY: deploy-vpc
+deploy-vpc: .dev .test
 	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
 	 	aws cloudformation deploy \
-			--stack-name network \
+			--stack-name vpc-2azs \
 			--no-fail-on-empty-changeset \
 			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/network.yml
+			--template-file cloudformation/templates/vpc-2azs.yaml
+	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
+	 	aws cloudformation deploy \
+			--stack-name vpc-endpoint-s3 \
+			--no-fail-on-empty-changeset \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--template-file cloudformation/templates/vpc-endpoint-s3.yaml \
+			--parameter-overrides \
+				ParentVPCStack=vpc-2azs
 
 .PHONY: deploy-persistance
 deploy-persistance: .dev .test

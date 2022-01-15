@@ -217,6 +217,12 @@ Resources:
     Condition: BuildNATGateway
     Properties:
       Domain: VPC
+  S3VPCEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      RouteTableIds: !Split [',', !Join [',', [{'Fn::ImportValue': !Sub '${ParentVPCStack}-RouteTablesPublic'}, {'Fn::ImportValue': !Sub '${ParentVPCStack}-RouteTablesPrivate'}]]]
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-VPC'}
 Outputs:
   VPCID:
     Description: VPC ID of the base network

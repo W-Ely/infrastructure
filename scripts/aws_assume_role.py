@@ -74,8 +74,7 @@ class Cache:
             f.write(json.dumps(res))
 
 
-def main(args=None):
-
+def main(args):
     sts_client = boto3.session.Session().client("sts")
     caller_identity = sts_client.get_caller_identity()
     arn = caller_identity["Arn"]
