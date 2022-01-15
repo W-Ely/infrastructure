@@ -39,8 +39,60 @@ Resources:
             Principal:
               AWS:
                 - !Sub "arn:aws:iam::${AWS::AccountId}:role/admin"
+  PypiBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "pypi-${AWS::AccountId}-${AWS::Region}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  PypiBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PypiBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Deny
+            Action: s3:*
+            Resource: !Sub "${PypiBucket.Arn}/*"
+            Principal: '*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Effect: Allow
+            Action:
+              - s3:Get*
+              - s3:List*
+              - s3:PutObject
+            Resource:
+             - !Sub "${PypiBucket.Arn}/*"
+             - !Sub "${PypiBucket.Arn}"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/admin"
 Outputs:
   ECRKolvirArn:
     Value: !GetAtt ECRKolvir.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ECRKolvirArn"
   ECRKolvirUri:
     Value: !GetAtt ECRKolvir.RepositoryUri
+    Export:
+      Name: !Sub "${AWS::StackName}-ECRKolvirUri"
+  ServerlessBucketArn:
+    Value: !GetAtt ServerlessDeployBucket.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ServerlessBucketArn"
+  ServerlessBucketName:
+    Value: !Ref ServerlessDeployBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-ServerlessBucketName"
+  PypiBucketArn:
+    Value: !GetAtt PypiBucket.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-PypiBucketArn"
+  PypiBucketName:
+    Value: !Ref PypiBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-PypiBucketName"
