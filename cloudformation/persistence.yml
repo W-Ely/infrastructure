@@ -53,13 +53,13 @@ Resources:
       Bucket: !Ref PypiBucket
       PolicyDocument:
         Statement:
-          # - Effect: Deny
-          #   Action: s3:*
-          #   Resource: !Sub "${PypiBucket.Arn}/*"
-          #   Principal: '*'
-          #   Condition:
-          #     Bool:
-          #       aws:SecureTransport: 'false'
+          - Effect: Deny
+            Action: s3:*
+            Resource: !Sub "${PypiBucket.Arn}/*"
+            Principal: '*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
           - Effect: Allow
             Action:
               - s3:Get*
