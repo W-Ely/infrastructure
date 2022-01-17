@@ -1,0 +1,21 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Domain Names created in the console but here for import use
+Parameters:
+  DomainName:
+    Description: 'The domain name'
+    Type: String
+Conditions:
+  HasNot: !Equals ['true', 'false']
+Resources:
+  NullResource:
+    Type: 'Custom::NullResource'
+    Condition: HasNot
+Outputs:
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  DomainName:
+    Description: 'The name of the hosted zone.'
+    Value: !Ref DomainName
+    Export:
+      Name: !Sub '${AWS::StackName}-DomainName'

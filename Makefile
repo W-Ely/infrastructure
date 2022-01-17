@@ -31,6 +31,9 @@ clean:  ## Clean build
 	@touch .dev
 
 .test: .env $(cloudformation-files)
+	$(MAKE) validate-cloudformation cf-file=domain-names.yaml
+	$(MAKE) validate-cloudformation cf-file=templates/zone-private.yaml
+	$(MAKE) validate-cloudformation cf-file=templates/zone-public.yaml
 	$(MAKE) validate-cloudformation cf-file=templates/vpc-2azs.yaml
 	$(MAKE) validate-cloudformation cf-file=templates/vpc-endpoint-s3.yaml
 	$(MAKE) validate-cloudformation cf-file=boundaries.yml
@@ -108,8 +111,14 @@ deploy-budgets: .dev .test
 			--parameter-overrides \
 				NotificationEmailAddress=$(notification-email)
 
-.PHONY: deploy-vpc
-deploy-vpc: .dev .test
+# This domain was first registered with Route53, then the auto created zones were removed
+# After creating Cloudformation deployed zones
+domain-name := enigmatic.link
+.PHONY: deploy-network
+deploy-network: .dev .test
+	# After registering a domain in Route53, one needs to delete the HostedZone and
+	# recreate here with Cloudformation, the name servers in the registered
+	# domain name then need to be fixed ;-/
 	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
 	 	aws cloudformation deploy \
 			--stack-name vpc-2azs \
@@ -124,6 +133,32 @@ deploy-vpc: .dev .test
 			--template-file cloudformation/templates/vpc-endpoint-s3.yaml \
 			--parameter-overrides \
 				ParentVPCStack=vpc-2azs
+	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
+	 	aws cloudformation deploy \
+			--stack-name zone-public \
+			--no-fail-on-empty-changeset \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--template-file cloudformation/templates/zone-public.yaml \
+			--parameter-overrides \
+				Name=$(domain-name)
+	# Not yet in use
+	# pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
+	#  	aws cloudformation deploy \
+	# 		--stack-name zone-private \
+	# 		--no-fail-on-empty-changeset \
+	# 		--capabilities CAPABILITY_NAMED_IAM \
+	# 		--template-file cloudformation/templates/zone-private.yaml \
+	# 		--parameter-overrides \
+	# 			ParentVPCStack=vpc-2azs \
+	# 			Name=int.$(domain-name)
+	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
+	 	aws cloudformation deploy \
+			--stack-name domain-names \
+			--no-fail-on-empty-changeset \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--template-file cloudformation/domain-names.yaml \
+			--parameter-overrides \
+				DomainName=$(domain-name)
 
 .PHONY: deploy-persistance
 deploy-persistance: .dev .test
