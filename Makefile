@@ -5,6 +5,7 @@ cloudformation-directory := cloudformation
 script-files := $(shell find $(script-directory) -name '*.py' -not \( -path '*__pycache__*' \))
 cloudformation-files := $(shell find $(cloudformation-directory) -name '*.yml')
 deploy-role ?= admin
+assume-role := pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa
 
 # This is a self documenting make file.  ## Comments after the command are the help
 # options.
@@ -67,49 +68,44 @@ lint: .lint ## Run lint
 
 cf-file ?=
 validate-cloudformation: .dev
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-		aws cloudformation validate-template \
+	$(assume-role) aws cloudformation validate-template \
 			--no-cli-pager \
 			--template-body file://./cloudformation/${cf-file}
 
 .PHONY: deploy-boundaries
 deploy-boundaries: .dev .test
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	 	aws cloudformation deploy \
-			--stack-name boundaries \
-			--no-fail-on-empty-changeset \
-			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/boundaries.yml
+	$(assume-role) aws cloudformation deploy \
+		--stack-name boundaries \
+		--no-fail-on-empty-changeset \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-file cloudformation/boundaries.yml
 
 .PHONY: deploy-roles
 deploy-roles: .dev .test
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	 	aws cloudformation deploy \
-			--stack-name roles \
-			--no-fail-on-empty-changeset \
-			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/roles.yml
+	$(assume-role) aws cloudformation deploy \
+		--stack-name roles \
+		--no-fail-on-empty-changeset \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-file cloudformation/roles.yml
 
 .PHONY: deploy-users
 deploy-users: .dev .test
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	 	aws cloudformation deploy \
-			--stack-name users \
-			--no-fail-on-empty-changeset \
-			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/users.yml
+	$(assume-role) aws cloudformation deploy \
+		--stack-name users \
+		--no-fail-on-empty-changeset \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-file cloudformation/users.yml
 
 notification-email ?=
 .PHONY: deploy-budgets
 deploy-budgets: .dev .test
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	 	aws cloudformation deploy \
-			--stack-name budgets \
-			--no-fail-on-empty-changeset \
-			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/budgets.yml \
-			--parameter-overrides \
-				NotificationEmailAddress=$(notification-email)
+	$(assume-role) aws cloudformation deploy \
+		--stack-name budgets \
+		--no-fail-on-empty-changeset \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-file cloudformation/budgets.yml \
+		--parameter-overrides \
+			NotificationEmailAddress=$(notification-email)
 
 # This domain was first registered with Route53, then the auto created zones were removed
 # After creating Cloudformation deployed zones
@@ -119,61 +115,54 @@ deploy-network: .dev .test
 	# After registering a domain in Route53, one needs to delete the HostedZone and
 	# recreate here with Cloudformation, the name servers in the registered
 	# domain name then need to be fixed ;-/
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	 	aws cloudformation deploy \
-			--stack-name vpc-2azs \
-			--no-fail-on-empty-changeset \
-			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/templates/vpc-2azs.yaml
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	 	aws cloudformation deploy \
-			--stack-name vpc-endpoint-s3 \
-			--no-fail-on-empty-changeset \
-			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/templates/vpc-endpoint-s3.yaml \
-			--parameter-overrides \
-				ParentVPCStack=vpc-2azs
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	 	aws cloudformation deploy \
-			--stack-name zone-public \
-			--no-fail-on-empty-changeset \
-			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/templates/zone-public.yaml \
-			--parameter-overrides \
-				Name=$(domain-name)
+	$(assume-role) aws cloudformation deploy \
+		--stack-name vpc-2azs \
+		--no-fail-on-empty-changeset \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-file cloudformation/templates/vpc-2azs.yaml
+	$(assume-role) aws cloudformation deploy \
+		--stack-name vpc-endpoint-s3 \
+		--no-fail-on-empty-changeset \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-file cloudformation/templates/vpc-endpoint-s3.yaml \
+		--parameter-overrides \
+			ParentVPCStack=vpc-2azs
+	$(assume-role) aws cloudformation deploy \
+		--stack-name zone-public \
+		--no-fail-on-empty-changeset \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-file cloudformation/templates/zone-public.yaml \
+		--parameter-overrides \
+			Name=$(domain-name)
 	# Not yet in use
-	# pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	#  	aws cloudformation deploy \
-	# 		--stack-name zone-private \
-	# 		--no-fail-on-empty-changeset \
-	# 		--capabilities CAPABILITY_NAMED_IAM \
-	# 		--template-file cloudformation/templates/zone-private.yaml \
-	# 		--parameter-overrides \
-	# 			ParentVPCStack=vpc-2azs \
-	# 			Name=int.$(domain-name)
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	 	aws cloudformation deploy \
-			--stack-name domain-names \
-			--no-fail-on-empty-changeset \
-			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/domain-names.yaml \
-			--parameter-overrides \
-				DomainName=$(domain-name)
+	# $(assume-role) aws cloudformation deploy \
+	# 	--stack-name zone-private \
+	# 	--no-fail-on-empty-changeset \
+	# 	--capabilities CAPABILITY_NAMED_IAM \
+	# 	--template-file cloudformation/templates/zone-private.yaml \
+	# 	--parameter-overrides \
+	# 		ParentVPCStack=vpc-2azs \
+	# 		Name=int.$(domain-name)
+	$(assume-role) aws cloudformation deploy \
+		--stack-name domain-names \
+		--no-fail-on-empty-changeset \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-file cloudformation/domain-names.yaml \
+		--parameter-overrides \
+			DomainName=$(domain-name)
 
 .PHONY: deploy-persistance
 deploy-persistance: .dev .test
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	 	aws cloudformation deploy \
-			--stack-name persistance \
-			--no-fail-on-empty-changeset \
-			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/persistence.yml
+	$(assume-role) aws cloudformation deploy \
+		--stack-name persistance \
+		--no-fail-on-empty-changeset \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-file cloudformation/persistence.yml
 
 .PHONY: deploy-service-linked-roles
 deploy-service-linked-roles: .dev .test
-	pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa \
-	 	aws cloudformation deploy \
-			--stack-name service-linked-roles \
-			--no-fail-on-empty-changeset \
-			--capabilities CAPABILITY_NAMED_IAM \
-			--template-file cloudformation/service-linked-roles.yml
+	$(assume-role) aws cloudformation deploy \
+		--stack-name service-linked-roles \
+		--no-fail-on-empty-changeset \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--template-file cloudformation/service-linked-roles.yml
