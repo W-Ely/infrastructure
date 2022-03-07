@@ -1,8 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
-
 Description: >
   Create users.  Not regionalized since IAM is global.
-
 Resources:
   BrandonUser:
     Type: AWS::IAM::User
@@ -20,14 +18,35 @@ Resources:
     Type: AWS::IAM::User
     Properties:
       UserName: test
-
+  CircleUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: circle
+  CircleAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      Serial: 1
+      Status: Active
+      UserName: !Ref CircleUser
   AdminGroup:
     Type: AWS::IAM::Group
     Properties:
       GroupName: AdminUsers
       ManagedPolicyArns:
-        - !Ref AdminPolicy
-
+        - !Ref AssumeRoleAdminPolicy
+        - !Ref AssumeRoleDeployPolicy
+  AllUsersGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: AllUsers
+      ManagedPolicyArns:
+        - !Ref SelfAdminPolicy
+  CircleUsersGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: CircleUsers
+      ManagedPolicyArns:
+        - !Ref AssumeRoleDeployPolicy
   PopulateAdminsGroup:
     Type: AWS::IAM::UserToGroupAddition
     Properties:
@@ -36,14 +55,6 @@ Resources:
         - !Ref BrandonUser
         - !Ref CarlosUser
         - !Ref ElyUser
-
-  AllUsersGroup:
-    Type: AWS::IAM::Group
-    Properties:
-      GroupName: AllUsers
-      ManagedPolicyArns:
-        - !Ref SelfAdminPolicy
-
   PopulateAllUsersGroup:
     Type: AWS::IAM::UserToGroupAddition
     Properties:
@@ -53,27 +64,19 @@ Resources:
         - !Ref CarlosUser
         - !Ref ElyUser
         - !Ref TestUser
-
-  AdminPolicy:
-    Type: AWS::IAM::ManagedPolicy
-    DependsOn: AdminRole
+  PopulateCircleUsersGroup:
+    Type: AWS::IAM::UserToGroupAddition
     Properties:
-      Description: Allow assuming the admin role
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - sts:AssumeRole
-            Resource:
-              - Fn::GetAtt: AdminRole.Arn
-
+      GroupName: !Ref CircleUsersGroup
+      Users:
+        - !Ref CircleUser
   AdminRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: admin
+      Path: !Sub /admin/
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AdministratorAccess  # built-in
+        - arn:aws:iam::aws:policy/AdministratorAccess
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -85,7 +88,80 @@ Resources:
             Condition:
               Bool:
                 "aws:MultiFactorAuthPresent": "true"
-
+  AssumeRoleAdminPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    DependsOn: AdminRole
+    Properties:
+      Path: !Sub /admin/
+      Description: Allow assuming the admin role
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Resource:
+              - Fn::GetAtt: AdminRole.Arn
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: deploy
+      Path: !Sub /deploy/
+      PermissionsBoundary: !Sub arn:aws:iam::${AWS::AccountId}:policy/boundaries/DeployBoundary
+      ManagedPolicyArns:
+        - !Ref DeployPolicy
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - "sts:AssumeRole"
+            Condition:
+              Bool:
+                "aws:MultiFactorAuthPresent": "true"
+          - Sid: CircleUserAssume
+            Effect: Allow
+            Principal:
+              AWS:
+                - !GetAtt CircleUser.Arn
+            Action: sts:AssumeRole
+          - Sid: CloudformationAssume
+            Effect: Allow
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+  AssumeRoleDeployPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    DependsOn: DeployRole
+    Properties:
+      Path: !Sub /deploy/
+      Description: Allow assuming the deploy role
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Resource:
+              - Fn::GetAtt: DeployRole.Arn
+  DeployPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Path: !Sub /deploy/
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: Cloudformation
+            Effect: Allow
+            Action:
+              - cloudformation:Describe*
+            Resource:
+              - "*"
   SelfAdminPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -121,43 +197,51 @@ Resources:
               - iam:UploadSigningCertificate
             Resource:
               - !Sub "arn:aws:iam::${AWS::AccountId}:user/${!aws:username}"
-          - Sid: ListOwnMFA
+          # ----------------------------------------
+          # Allows MFA-authenticated IAM users to manage their own MFA device
+          # on the My Security Credentials page
+          # https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_examples_aws_my-sec-creds-self-manage-mfa-only.html
+          - Sid: AllowViewAccountInfo
             Effect: Allow
-            Action:
-              - iam:ListMFADevices
-            Resource:
-              - !Sub "arn:aws:iam::${AWS::AccountId}:mfa/*"
-              - !Sub "arn:aws:iam::${AWS::AccountId}:user/${!aws:username}"
-          - Sid: ManageOwnMFA
+            Action: iam:ListVirtualMFADevices
+            Resource: "*"
+          - Sid: AllowManageOwnVirtualMFADevice
             Effect: Allow
             Action:
               - iam:CreateVirtualMFADevice
-              # - "iam:DeleteVirtualMFADevice"  # Only an admin can disable MFA
+              - iam:DeleteVirtualMFADevice
+            Resource: "arn:aws:iam::*:mfa/${!aws:username}"
+          - Sid: AllowManageOwnUserMFA
+            Effect: Allow
+            Action:
+              - iam:DeactivateMFADevice
               - iam:EnableMFADevice
+              - iam:GetUser
+              - iam:ListMFADevices
               - iam:ResyncMFADevice
-            Resource:
-              - !Sub "arn:aws:iam::${AWS::AccountId}:mfa/${!aws:username}"
-              - !Sub "arn:aws:iam::${AWS::AccountId}:user/${!aws:username}"
-          # Only an admin can deactivate MFA
-          # - Sid: "DeactivateOwnMFA"
-          #   Effect: Allow
-          #   Action:
-          #     - "iam:DeactivateMFADevice"
-          #   Resource:
-          #     - !Sub "arn:aws:iam::${AWS::AccountId}:mfa/${!aws:username}"
-          #     - !Sub "arn:aws:iam::${AWS::AccountId}:user/${!aws:username}"
-          #   Condition:
-          #     Bool:
-          #       "aws:MultiFactorAuthPresent": "true"
+            Resource: "arn:aws:iam::*:user/${!aws:username}"
+          - Sid: DenyAllExceptListedIfNoMFA
+            Effect: Deny
+            NotAction:
+              - iam:CreateVirtualMFADevice
+              - iam:EnableMFADevice
+              - iam:GetUser
+              - iam:ListMFADevices
+              - iam:ListVirtualMFADevices
+              - iam:ResyncMFADevice
+              - sts:GetSessionToken
+            Resource: "*"
+            Condition:
+              BoolIfExists:
+                "aws:MultiFactorAuthPresent": false
+          # ---------------------------------------
           - Sid: ConsoleAccess
             Effect: Allow
             Action:
               - iam:GetAccountPasswordPolicy
               - iam:GetAccountSummary
               - iam:ListAccountAliases
-              - iam:ListPolicies
               - iam:ListUsers
-              - iam:ListVirtualMFADevices
               # Users - own iam user
               - access-analyzer:ListPolicyGenerations
               - iam:GenerateServiceLastAccessedDetails
@@ -173,3 +257,14 @@ Resources:
               # Policies
               - iam:ListPolicies
             Resource: "*"
+Outputs:
+  CircleAccessKeyId:
+    Description: CircleCI Access Key Id
+    Value: !Ref CircleAccessKey
+    Export:
+      Name: !Sub '${AWS::StackName}-CircleAccessKeyId'
+  CircleSecretKey:
+    Description: CircleCI Access Key Id
+    Value: !GetAtt CircleAccessKey.SecretAccessKey
+    Export:
+      Name: !Sub '${AWS::StackName}-CircleSecretKey'

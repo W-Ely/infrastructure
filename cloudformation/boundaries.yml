@@ -100,9 +100,112 @@ Resources:
               - iam:SetDefaultPolicyVersion
             Resource:
               - "arn:aws:iam:::policy/boundaries/*"
+  DeployBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: DeployBoundary
+      Path: "/boundaries/"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyPermissions
+            Effect: Deny
+            Action:
+              - cloudformation:*
+              - iam:DeleteRolePermissionsBoundary
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicy
+              - iam:DeletePolicyVersion
+              - iam:SetDefaultPolicyVersion
+              - ssm:StartSession
+              - ssm:ResumeSession
+              - sts:AssumeRole
+            Resource: "*"
+          - Sid: AllowPermissions
+            Effect: Allow
+            Action:
+              - acm:*
+              - acm-pca:*
+              - apigateway:*
+              - application-autoscaling:*
+              - athena:*
+              - autoscaling:*
+              - backup:*
+              - batch:*
+              - ce:*
+              - cloudfront:*
+              - cloudsearch:*
+              - cloudtrail:*
+              - cloudwatch:*
+              - cognito-identity:*
+              - cognito-idp:*
+              - cognito-sync:*
+              - dax:*
+              - dms:*
+              - dynamodb:*
+              - ec2:*
+              - ec2messages:*
+              - ecr:*
+              - ecs:*
+              - elasticache:*
+              - elasticloadbalancing:*
+              - elasticmapreduce:*
+              - es:*
+              - events:*
+              - execute-api:*
+              - firehose:*
+              - fms:*
+              - glacier:*
+              - glue:*
+              - health:*
+              - kinesis:*
+              - kinesisanalytics:*
+              - kms:*
+              - lambda:*
+              - logs:*
+              - neptune-db:*
+              - redshift:*
+              - resource-groups:*
+              - rds:*
+              - rds-db:connect
+              - route53:*
+              - route53domains:*
+              - route53resolver:*
+              - s3:*
+              - sagemaker:*
+              - secretsmanager:*
+              - serverlessrepo:*
+              - servicediscovery:*
+              - ses:*
+              - sns:*
+              - sqs:*
+              - ssm:*
+              - states:*
+              - support:*
+              - tag:GetResources
+              - transfer:*
+              - trustedadvisor:*
+              - waf:*
+              - waf-regional:*
+              - xray:*
+            Resource: "*"
+          - Sid: DenyBoundaryEdit
+            Effect: Deny
+            Action:
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicy
+              - iam:DeletePolicyVersion
+              - iam:SetDefaultPolicyVersion
+            Resource:
+              - "arn:aws:iam:::policy/boundaries/*"
 Outputs:
   LambdaBoundaryPolicy:
     Value: !Ref LambdaBoundary
     Description: Lambda boundary
     Export:
         Name: "LambdaBoundary"
+  DeployBoundaryPolicy:
+    Value: !Ref DeployBoundary
+    Description: Deploy boundary
+    Export:
+        Name: "DeployBoundary"

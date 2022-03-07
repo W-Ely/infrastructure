@@ -10,7 +10,7 @@ Resources:
   ServerlessDeployBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "serverless-deploy-bucket-${AWS::AccountId}-${AWS::Region}"
+      BucketName: !Sub "serverless-deploy-${AWS::AccountId}-${AWS::Region}"
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -32,7 +32,7 @@ Resources:
             Action:
               - s3:Get*
               - s3:List*
-              - s3:PutObject
+              - s3:Put*
             Resource:
              - !Sub "${ServerlessDeployBucket.Arn}/*"
              - !Sub "${ServerlessDeployBucket.Arn}"

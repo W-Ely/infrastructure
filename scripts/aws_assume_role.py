@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import boto3
 
-CACHE_DIR = os.path.join(os.path.expanduser("~"), ".aws/assume-role/cache")
+CACHE_DIR = os.path.join(os.path.expanduser("~"), ".aws/aws-assume-role/cache")
 
 
 def is_expired(payload):

@@ -1,11 +1,15 @@
-.PHONY: clean dev env help lock test deploy-users validate-cloudformation
+.PHONY: clean dev env help lock test deploy-users validate-cloudformation ipthon
 
 script-directory := scripts
 cloudformation-directory := cloudformation
 script-files := $(shell find $(script-directory) -name '*.py' -not \( -path '*__pycache__*' \))
 cloudformation-files := $(shell find $(cloudformation-directory) -name '*.yml')
-deploy-role ?= admin
+deploy-role ?= admin/admin
 assume-role := pipenv run python ./scripts/aws_assume_role.py --role $(deploy-role) --mfa
+
+ifneq (,$(wildcard ./.env))
+include .env
+endif
 
 # This is a self documenting make file.  ## Comments after the command are the help
 # options.
@@ -73,7 +77,8 @@ validate-cloudformation: .dev
 			--template-body file://./cloudformation/${cf-file}
 
 .PHONY: deploy-boundaries
-deploy-boundaries: .dev .test
+deploy-boundaries: .dev
+	$(MAKE) validate-cloudformation cf-file=boundaries.yml
 	$(assume-role) aws cloudformation deploy \
 		--stack-name boundaries \
 		--no-fail-on-empty-changeset \
@@ -81,7 +86,8 @@ deploy-boundaries: .dev .test
 		--template-file cloudformation/boundaries.yml
 
 .PHONY: deploy-roles
-deploy-roles: .dev .test
+deploy-roles: .dev
+	$(MAKE) validate-cloudformation cf-file=roles.yml
 	$(assume-role) aws cloudformation deploy \
 		--stack-name roles \
 		--no-fail-on-empty-changeset \
@@ -89,7 +95,8 @@ deploy-roles: .dev .test
 		--template-file cloudformation/roles.yml
 
 .PHONY: deploy-users
-deploy-users: .dev .test
+deploy-users: .dev
+	$(MAKE) validate-cloudformation cf-file=users.yml
 	$(assume-role) aws cloudformation deploy \
 		--stack-name users \
 		--no-fail-on-empty-changeset \
@@ -98,7 +105,8 @@ deploy-users: .dev .test
 
 notification-email ?=
 .PHONY: deploy-budgets
-deploy-budgets: .dev .test
+deploy-budgets: .dev
+	$(MAKE) validate-cloudformation cf-file=budgets.yml
 	$(assume-role) aws cloudformation deploy \
 		--stack-name budgets \
 		--no-fail-on-empty-changeset \
@@ -111,7 +119,12 @@ deploy-budgets: .dev .test
 # After creating Cloudformation deployed zones
 domain-name := enigmatic.link
 .PHONY: deploy-network
-deploy-network: .dev .test
+deploy-network: .dev
+	$(MAKE) validate-cloudformation cf-file=templates/vpc-2azs.yaml
+	$(MAKE) validate-cloudformation cf-file=templates/vpc-endpoint-s3.yaml
+	$(MAKE) validate-cloudformation cf-file=templates/zone-public.yaml
+	# $(MAKE) validate-cloudformation cf-file=templates/zone-private.yaml
+	$(MAKE) validate-cloudformation cf-file=domain-names.yaml
 	# After registering a domain in Route53, one needs to delete the HostedZone and
 	# recreate here with Cloudformation, the name servers in the registered
 	# domain name then need to be fixed ;-/
@@ -152,7 +165,8 @@ deploy-network: .dev .test
 			DomainName=$(domain-name)
 
 .PHONY: deploy-persistance
-deploy-persistance: .dev .test
+deploy-persistance: .dev
+	$(MAKE) validate-cloudformation cf-file=persistence.yml
 	$(assume-role) aws cloudformation deploy \
 		--stack-name persistance \
 		--no-fail-on-empty-changeset \
@@ -160,9 +174,13 @@ deploy-persistance: .dev .test
 		--template-file cloudformation/persistence.yml
 
 .PHONY: deploy-service-linked-roles
-deploy-service-linked-roles: .dev .test
+deploy-service-linked-roles: .dev
+	$(MAKE) validate-cloudformation cf-file=service-linked-roles.yml
 	$(assume-role) aws cloudformation deploy \
 		--stack-name service-linked-roles \
 		--no-fail-on-empty-changeset \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--template-file cloudformation/service-linked-roles.yml
+
+ipython: .dev  ## Run ipython
+	PYTHONPATH=$$(pwd) pipenv run ipython
