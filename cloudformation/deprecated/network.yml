@@ -1,0 +1,271 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+# Modified from:
+# https://www.infoq.com/articles/aws-vpc-cloudformation/
+# https://github.com/kennyk65/aws-vpc-cloud-formation/blob/master/base-vpc-example-improved.template.yml
+
+# This CloudFormation template deploys a basic VPC / Network.  Specifically:
+# It deploys a VPC with 1 to 6 subnets 3 Availability Zones depending on parameter selection.
+# User has the choice of public subnets or private + public subnets in each AZ.
+# When private subnets are created, NATing is provided by either an EC2 instance or NAT Gateway based on user selection.
+# The VPC and subnets are exported for use by other stacks.
+
+# If s3 calls are /data is needed consider:
+# https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints.html
+# https://docs.aws.amazon.com/AmazonS3/latest/userguide/privatelink-interface-endpoints.html#types-of-vpc-endpoints-for-s3
+
+# Short comeings
+# This template on provides a single NAT Gateway when the NAT paramater is True.
+# If a NAT is required, and failover is needed, a NAT is needed for each subnet.
+
+
+Description: "Networking - VPC,Subnets,Routing,ENI,NATGateway..."
+
+Metadata:
+  # Control the UI display when running this template from the AWS Management Console:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+          - NumberOfAZs
+          - PrivateSubnets
+          - NAT
+Parameters:
+  PrivateSubnets:
+    Type: String
+    AllowedValues:
+    - True
+    - False
+    Default: True
+    Description: Do you want to create private subnets in addition to public subnets?
+  NumberOfAZs:
+    Type: Number
+    AllowedValues:
+    - 1
+    - 2
+    - 3
+    Default: 3
+    Description:  How many Availability Zones do you wish to utilize?
+  NAT:
+    Type: String
+    AllowedValues:
+    - True
+    - False
+    Default: False
+    Description: Do you want to create a NAT Gateway for egress to the internet from private subnets?
+Conditions:
+  BuildPublicB:         !Not [ !Equals [ !Ref NumberOfAZs, 1 ]]
+  BuildPublicC:         !Equals [ !Ref NumberOfAZs, 3 ]
+  BuildPrivateSubnets:  !Equals [ !Ref PrivateSubnets, True ]
+  BuildPrivateA:        !Equals [ !Ref PrivateSubnets, True ]
+  BuildPrivateB:        !And [ Condition: BuildPrivateSubnets, Condition: BuildPublicB ]
+  BuildPrivateC:        !And [ Condition: BuildPrivateSubnets, Condition: BuildPublicC ]
+  BuildNATGateway:      !And [ Condition: BuildPrivateSubnets, !Equals [ !Ref NAT, "True" ] ]
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.1.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-vpc
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.1.10.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-public-a
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Condition: BuildPublicB
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.1.20.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-public-b
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Condition: BuildPublicC
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.1.30.0/24
+      AvailabilityZone: !Select [ 2, !GetAZs ]
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-public-c
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Condition: BuildPrivateA
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.1.50.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-private-a
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Condition: BuildPrivateB
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.1.60.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-private-b
+  PrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Condition: BuildPrivateC
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.1.70.0/24
+      AvailabilityZone: !Select [ 2, !GetAZs ]
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-private-c
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value:  !Sub ${AWS::StackName}-public
+  PublicRoute1:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Condition: BuildPrivateA
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value:  !Sub ${AWS::StackName}-private
+  PrivateRoute1:
+    Type: AWS::EC2::Route
+    Condition: BuildNATGateway
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGatewayA
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: BuildPublicB
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+  PublicSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: BuildPublicC
+    Properties:
+      SubnetId: !Ref PublicSubnetC
+      RouteTableId: !Ref PublicRouteTable
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: BuildPrivateA
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: BuildPrivateB
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+  PrivateSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: BuildPrivateC
+    Properties:
+      SubnetId: !Ref PrivateSubnetC
+      RouteTableId: !Ref PrivateRouteTable
+  NATGatewayA:
+    Type: AWS::EC2::NatGateway
+    Condition: BuildNATGateway
+    Properties:
+      AllocationId: !GetAtt ElasticIPAddress.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-nat-a
+  ElasticIPAddress:
+    Type: AWS::EC2::EIP
+    Condition: BuildNATGateway
+    Properties:
+      Domain: VPC
+  S3VPCEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      RouteTableIds: !Split [',', !Join [',', [{'Fn::ImportValue': !Sub '${ParentVPCStack}-RouteTablesPublic'}, {'Fn::ImportValue': !Sub '${ParentVPCStack}-RouteTablesPrivate'}]]]
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-VPC'}
+Outputs:
+  VPCID:
+    Description: VPC ID of the base network
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-vpc-id
+  VPCCidrBlock:
+    Description: VPC ID of the base network
+    Value: !GetAtt VPC.CidrBlock
+    Export:
+      Name: !Sub ${AWS::StackName}-vpc-cidr-block
+  PublicSubnetA:
+    Description: First Public Subnet
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub ${AWS::StackName}-public-subnet-a
+  PublicSubnetB:
+    Description: Second Public Subnet
+    Condition: BuildPublicB
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub ${AWS::StackName}-public-subnet-b
+  PublicSubnetC:
+    Description: Third Public Subnet
+    Condition: BuildPublicC
+    Value: !Ref PublicSubnetC
+    Export:
+      Name: !Sub ${AWS::StackName}-public-subnet-c
+  PrivateSubnetA:
+    Condition: BuildPrivateSubnets
+    Description: First Private Subnet
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub ${AWS::StackName}-private-subnet-a
+  PrivateSubnetB:
+    Condition: BuildPrivateB
+    Description: Second Private Subnet
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Sub ${AWS::StackName}-private-subnet-b
+  PrivateSubnetC:
+    Condition: BuildPrivateC
+    Description: Third Private Subnet
+    Value: !Ref PrivateSubnetC
+    Export:
+      Name: !Sub ${AWS::StackName}-private-subnet-c

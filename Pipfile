@@ -1,0 +1,13 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+black =         {version = "==21.12b0",  index = "pypi"}
+ipython =       {version = "~=8.0",    index = "pypi"}
+pycodestyle =   {version = "~=2.6",     index = "pypi"}
+pylint =        {version = "~=2.12",   index = "pypi"}
+
+[packages]
+boto3 =         {version = "~=1.20",    index = "pypi"}
